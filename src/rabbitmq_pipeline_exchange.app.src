@@ -1,0 +1,12 @@
+{application, rabbitmq_pipeline_exchange,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { rabbitmq_pipeline_exchange_app, []}},
+  {env, []}
+ ]}.
