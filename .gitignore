@@ -6,4 +6,5 @@ deps
 *.swp
 ebin
 bin
+dist
 *.dump
