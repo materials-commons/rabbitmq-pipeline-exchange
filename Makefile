@@ -1,63 +1,37 @@
-APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
-	public_key mnesia syntax_tools compiler
-COMBO_PLT = $(HOME)/.rmq_pipeline_combo_dialyzer_plt
+PACKAGE=pipeline-exchange
+DIST_DIR=dist
+EBIN_DIR=ebin
+INCLUDE_DIRS=include
+DEPS_DIR=deps
+DEPS ?=
+DEPS_EZ=$(foreach DEP, $(DEPS), $(DEPS_DIR)/$(DEP).ez)
+RABBITMQ_HOME ?= .
 
-.PHONY: deps test rel
+all: compile
 
-all: deps compile
+clean:
+	rm -rf $(DIST_DIR)
+	rm -rf $(EBIN_DIR)
 
-compile: deps
-	./rebar compile
+distclean: clean
+	rm -rf $(DEPS_DIR)
 
-deps:
+package: compile $(DEPS_EZ)
+	rm -f $(DIST_DIR)/$(PACKAGE).ez
+	mkdir -p $(DIST_DIR)/$(PACKAGE)
+	cp -r $(EBIN_DIR) $(DIST_DIR)/$(PACKAGE)
+	$(foreach EXTRA_DIR, $(INCLUDE_DIRS), cp -r $(EXTRA_DIR) $(DIST_DIR)/$(PACKAGE);)
+	(cd $(DIST_DIR); zip -r $(PACKAGE).ez $(PACKAGE))
+
+install: package
+	$(foreach DEP, $(DEPS_EZ), cp $(DEP) $(RABBITMQ_HOME)/plugins;)
+	cp $(DIST_DIR)/$(PACKAGE).ez $(RABBITMQ_HOME)/plugins
+
+$(DEPS_DIR):
 	./rebar get-deps
 
-generate:
-	./rebar generate
+$(DEPS_EZ):
+	cd $(DEPS_DIR); $(foreach DEP, $(DEPS), zip -r $(DEP).ez $(DEP);)
 
-#cli: compile
-#	./rebar escriptize
-#	./rebar -C rebar.config.sfpw escriptize
-
-rel: rel-config deps compile generate
-
-devrel: devl-rel-config deps compile generate
-
-rel-config:
-	cp rel/files/app.config.rel rel/files/app.config
-
-dev-rel-config:
-	cp rel/files/app.config.dev rel/files/app.config
-
-#relclean:
-#	rm -rf rel/process_monitor
-
-appclean:
-	rm -f ebin/*.beam
-
-clean: distclean
-	./rebar clean
-
-distclean:
-	./rebar delete-deps
-
-test: all
-	./rebar skip_deps=true eunit
-
-docs: deps
-	./rebar skip_deps=true doc
-
-build_plt: compile
-	dialyzer --build_plt --output_plt $(COMBO_PLT) --apps $(APPS) \
-		deps/*/ebin
-
-check_plt: compile
-	dialyzer --check_plt --plt $(COMBO_PLT) --apps $(APPS) \
-		deps/*/ebin
-
-dialyzer: compile
-	@echo
-	@echo Use "'make check_plt'" to check PLT prior to using this target.
-	@echo Use "'make build_plt'" to build PLT prior to using this target.
-	@echo
-	dialyzer --plt $(COMBO_PLT) ebin
+compile: $(DEPS_DIR)
+	./rebar compile
